@@ -1,1 +1,1 @@
-web: gunicorn -w 4 app:app
+web: python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 app:app
