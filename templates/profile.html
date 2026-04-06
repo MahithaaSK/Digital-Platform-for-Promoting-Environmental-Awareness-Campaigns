@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ user.name }}'s Profile{% endblock %}
+
+{% block content %}
+<div class="profile-header">
+    <img src="{{ user.profile_photo or 'https://ui-avatars.com/api/?name=User' }}" alt="Avatar" class="profile-avatar">
+    <div style="flex:1;">
+        <h1 style="margin:0; font-size:2rem; color:var(--primary-dark);">{{ user.name }}</h1>
+        <p style="color:var(--text-light); margin:0.25rem 0 0.75rem;">{{ user.email }}</p>
+        <div class="profile-stats">
+            <div class="stat">
+                <div class="stat-value">{{ user.followers_list.count() }}</div>
+                <div class="stat-label">Followers</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ user.followed.count() }}</div>
+                <div class="stat-label">Following</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ user_articles|length }}</div>
+                <div class="stat-label">Articles</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ user_campaigns|length }}</div>
+                <div class="stat-label">Campaigns</div>
+            </div>
+        </div>
+    </div>
+    {% if current_user.is_authenticated and current_user.id != user.id %}
+    <div style="display:flex; flex-direction:column; gap:0.75rem; align-items:flex-end;">
+        {% if current_user.is_following(user) %}
+        <form method="POST" action="{{ url_for('unfollow', user_id=user.id) }}">
+            <button type="submit" class="btn btn-sm" style="background:#FED7D7; color:#9B2C2C; border:none; font-weight:600;">Unfollow</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('follow', user_id=user.id) }}">
+            <button type="submit" class="btn btn-primary btn-sm">+ Follow</button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('conversation', user_id=user.id) }}" class="btn btn-secondary btn-sm">💬 Message</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tabs -->
+<div class="tabs" id="profile-tabs" style="margin-bottom:1.5rem;">
+    <button class="tab-btn active" onclick="openProfileTab('articles', this)">📝 Articles ({{ user_articles|length }})</button>
+    <button class="tab-btn" onclick="openProfileTab('campaigns', this)">📣 Campaigns ({{ user_campaigns|length }})</button>
+</div>
+
+<!-- Articles Tab -->
+<div id="profile-tab-articles" class="profile-tab-content">
+    {% if user_articles %}
+        <div class="grid">
+            {% for article in user_articles %}
+            <div class="card">
+                <span class="category">{{ article.category }}</span>
+                <h3 style="margin-top:0.5rem;">{{ article.title }}</h3>
+                <p>{{ article.content[:120] }}…</p>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <a href="{{ url_for('view_article', article_id=article.id) }}" class="btn btn-secondary btn-sm">Read →</a>
+                    <span style="font-size:0.82rem; color:var(--text-light);">❤️ {{ article.likes or 0 }} · 💬 {{ article.comments|length }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state"><p>No articles published yet.</p></div>
+    {% endif %}
+</div>
+
+<!-- Campaigns Tab -->
+<div id="profile-tab-campaigns" class="profile-tab-content" style="display:none;">
+    {% if user_campaigns %}
+        <div class="grid">
+            {% for campaign in user_campaigns %}
+            <div class="card">
+                <span class="category">{{ campaign.category }}</span>
+                <h3 style="margin-top:0.5rem;">{{ campaign.title }}</h3>
+                <p>{{ campaign.description[:120] }}…</p>
+                <div style="margin-bottom:1rem; font-size:0.88rem; color:var(--text-color);">
+                    <p>📍 {{ campaign.location }}</p>
+                    <p>📅 {{ campaign.date }}</p>
+                </div>
+                <a href="{{ url_for('view_campaign', campaign_id=campaign.id) }}" class="btn btn-secondary btn-sm">View →</a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state"><p>No campaigns created yet.</p></div>
+    {% endif %}
+</div>
+
+<script>
+function openProfileTab(tabName, btn) {
+    document.querySelectorAll('.profile-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#profile-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('profile-tab-' + tabName).style.display = 'block';
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

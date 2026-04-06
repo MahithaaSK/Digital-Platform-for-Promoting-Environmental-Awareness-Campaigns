@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Articles{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1>Environmental Articles 📚</h1>
+        <p style="color:var(--text-light);">Expand your knowledge on crucial environmental topics.</p>
+    </div>
+    <!-- Category Filter -->
+    <div class="filter-bar">
+        <a href="{{ url_for('articles') }}" class="filter-chip {% if not selected %}active{% endif %}">All</a>
+        {% for cat in categories %}
+        <a href="{{ url_for('articles', category=cat) }}" class="filter-chip {% if selected == cat %}active{% endif %}">{{ cat }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="grid">
+    {% for article in articles %}
+        <div class="card">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                {% if article.author %}
+                <img src="{{ article.author.profile_photo }}" alt="{{ article.author.name }}"
+                     style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                <a href="{{ url_for('view_profile', user_id=article.author.id) }}"
+                   style="font-size:0.82rem; font-weight:600; color:var(--text-light); text-decoration:none;">{{ article.author.name }}</a>
+                {% endif %}
+                <span style="font-size:0.78rem; color:#A0AEC0; margin-left:auto;">{{ article.created_at.strftime('%d %b') }}</span>
+            </div>
+            <span class="category">{{ article.category }}</span>
+            <h3 style="margin-top:0.5rem;">{{ article.title }}</h3>
+            <p>{{ article.content[:120] }}…</p>
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <a href="{{ url_for('view_article', article_id=article.id) }}" class="btn btn-secondary btn-sm">Read Full →</a>
+                <span style="font-size:0.82rem; color:var(--text-light);">❤️ {{ article.likes or 0 }} · 💬 {{ article.comments|length }}</span>
+            </div>
+        </div>
+    {% else %}
+        <div class="empty-state" style="grid-column: 1 / -1;">
+            <p>No articles available{% if selected %} in "{{ selected }}"{% endif %}.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Aura Assistant{% endblock %}
+
+{% block content %}
+<div class="widget-card" style="max-width:900px; margin:0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <div>
+            <h1 style="margin:0; color:var(--primary-dark);">Aura Assistant</h1>
+            <p style="margin:0.4rem 0 0; color:var(--text-light);">Voice-enabled environmental awareness promoting AI powered by Gemini.</p>
+        </div>
+        <div style="display:flex; gap:0.6rem;">
+            <button id="listen-btn" class="btn btn-secondary btn-sm" type="button">Start Listening</button>
+            <button id="speak-toggle-btn" class="btn btn-secondary btn-sm" type="button">Voice On</button>
+            <button id="clear-chat-btn" class="btn btn-secondary btn-sm" type="button">Clear Chat</button>
+        </div>
+    </div>
+
+    <div id="aura-status" style="font-size:0.9rem; color:var(--text-light); margin-bottom:0.8rem;">Status: Ready</div>
+
+    <div id="aura-chat" style="height:460px; overflow:auto; border:1px solid #E2E8F0; border-radius:10px; padding:1rem; background:#FAFAFA;"></div>
+
+    <form id="aura-form" style="display:flex; gap:0.6rem; margin-top:1rem;">
+        <input id="aura-input" type="text" placeholder="Talk to Aura about to know about get awareness about the environment.." style="flex:1; padding:0.75rem 0.9rem; border:1px solid #CBD5E0; border-radius:8px;">
+        <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+(function () {
+    const STORAGE_KEY = 'aura_chat_history_v1';
+    const chatEl = document.getElementById('aura-chat');
+    const formEl = document.getElementById('aura-form');
+    const inputEl = document.getElementById('aura-input');
+    const listenBtn = document.getElementById('listen-btn');
+    const speakToggleBtn = document.getElementById('speak-toggle-btn');
+    const clearChatBtn = document.getElementById('clear-chat-btn');
+    const statusEl = document.getElementById('aura-status');
+
+    let voiceEnabled = true;
+    let recognition = null;
+
+    function setStatus(text) {
+        statusEl.textContent = 'Status: ' + text;
+    }
+
+    function readHistory() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function saveHistory(history) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    }
+
+    function clearChatHistory() {
+        localStorage.removeItem(STORAGE_KEY);
+        chatEl.innerHTML = '';
+        addMessage('assistant', 'Hi, I am Aura. Ask me about environmental awareness, campaigns, and articles.');
+        setStatus('Ready');
+    }
+
+    function addMessage(role, text) {
+        const msg = document.createElement('div');
+        msg.style.marginBottom = '0.8rem';
+        const isUser = role === 'user';
+        msg.innerHTML = '<div style="font-size:0.78rem; color:#718096; margin-bottom:0.2rem;">' + (isUser ? 'You' : 'Aura') + '</div>' +
+                        '<div style="display:inline-block; max-width:92%; white-space:pre-wrap; line-height:1.55; padding:0.65rem 0.8rem; border-radius:10px; ' +
+                        (isUser ? 'background:#E6FFFA; color:#234E52;' : 'background:#EDF2F7; color:#2D3748;') + '">' +
+                        escapeHtml(text) + '</div>';
+        chatEl.appendChild(msg);
+        chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function speak(text) {
+        if (!voiceEnabled || !window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+    }
+
+    async function sendMessage(message) {
+        addMessage('user', message);
+
+        const history = readHistory();
+        history.push({ role: 'user', text: message, at: Date.now() });
+        saveHistory(history);
+
+        setStatus('Generating response...');
+
+        try {
+            const response = await fetch('/api/aura/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Request failed');
+            }
+
+            addMessage('assistant', data.reply);
+            const history2 = readHistory();
+            history2.push({ role: 'assistant', text: data.reply, at: Date.now() });
+            saveHistory(history2);
+            speak(data.reply);
+            setStatus('Ready');
+        } catch (error) {
+            addMessage('assistant', 'Error: ' + error.message);
+            setStatus('Error');
+        }
+    }
+
+    formEl.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const message = inputEl.value.trim();
+        if (!message) return;
+        inputEl.value = '';
+        sendMessage(message);
+    });
+
+    speakToggleBtn.addEventListener('click', function () {
+        voiceEnabled = !voiceEnabled;
+        speakToggleBtn.textContent = voiceEnabled ? 'Voice On' : 'Voice Off';
+    });
+
+    clearChatBtn.addEventListener('click', function () {
+        clearChatHistory();
+    });
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.continuous = false;
+
+        recognition.onstart = function () { setStatus('Listening...'); };
+        recognition.onerror = function () { setStatus('Mic error'); };
+        recognition.onend = function () { setStatus('Ready'); };
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            inputEl.value = transcript;
+            sendMessage(transcript);
+        };
+
+        listenBtn.addEventListener('click', function () {
+            recognition.start();
+        });
+    } else {
+        listenBtn.disabled = true;
+        setStatus('Speech recognition is not supported in this browser');
+    }
+
+    // One-time reset to clear previously saved chat history.
+    if (!localStorage.getItem('aura_chat_history_cleared_v1')) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem('aura_chat_history_cleared_v1', 'true');
+    }
+
+    const history = readHistory();
+    if (history.length === 0) {
+        addMessage('assistant', 'Hi, I am Aura. Ask me about environmental awareness, campaigns, and articles.');
+    } else {
+        history.slice(-30).forEach(function (item) {
+            addMessage(item.role, item.text);
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Campaigns{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1>Available Campaigns 🤝</h1>
+        <p style="color:var(--text-light);">Join local initiatives and make a tangible impact in your community.</p>
+    </div>
+    <!-- Category Filter -->
+    <div class="filter-bar">
+        <a href="{{ url_for('campaigns') }}" class="filter-chip {% if not selected %}active{% endif %}">All</a>
+        {% for cat in categories %}
+        <a href="{{ url_for('campaigns', category=cat) }}" class="filter-chip {% if selected == cat %}active{% endif %}">{{ cat }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="grid">
+    {% for campaign in campaigns %}
+        <div class="card">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                {% if campaign.author %}
+                <img src="{{ campaign.author.profile_photo }}" alt="{{ campaign.author.name }}"
+                     style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                <a href="{{ url_for('view_profile', user_id=campaign.author.id) }}"
+                   style="font-size:0.82rem; font-weight:600; color:var(--text-light); text-decoration:none;">{{ campaign.author.name }}</a>
+                {% endif %}
+            </div>
+            <span class="category">{{ campaign.category }}</span>
+            <h3 style="margin-top:0.5rem;">{{ campaign.title }}</h3>
+            <p>{{ campaign.description[:120] }}{% if campaign.description|length > 120 %}…{% endif %}</p>
+            <div style="margin-bottom:1rem; font-size:0.88rem; color:var(--text-color);">
+                <p>📍 <strong>{{ campaign.location }}</strong></p>
+                <p>📅 <strong>{{ campaign.date }}</strong></p>
+                <p>💬 {{ campaign.comments|length }} comments</p>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <a href="{{ url_for('view_campaign', campaign_id=campaign.id) }}" class="btn btn-secondary btn-sm">View Details</a>
+                {% if current_user.is_authenticated %}
+                    {% if campaign.id in participated_ids %}
+                        <button class="btn btn-sm" disabled style="background:#C6F6D5; color:#276749; cursor:not-allowed; border:none; font-weight:600;">✓ Joined</button>
+                    {% else %}
+                        <form method="POST" action="{{ url_for('participate', campaign_id=campaign.id) }}">
+                            <button type="submit" class="btn btn-primary btn-sm">Join</button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm">Login to Join</a>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="empty-state" style="grid-column: 1 / -1;">
+            <p>No campaigns available{% if selected %} in "{{ selected }}"{% endif %}.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

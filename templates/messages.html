@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+
+{% block content %}
+<div class="messages-layout">
+
+    <!-- Sidebar: Conversation List -->
+    <div class="msg-sidebar">
+        <div class="msg-sidebar-header">
+            <h2>💬 Messages</h2>
+        </div>
+        <div class="msg-contacts">
+            {% if partners %}
+                {% for partner in partners %}
+                <a href="{{ url_for('conversation', user_id=partner.id) }}"
+                   class="msg-contact-item {% if selected_user and selected_user.id == partner.id %}active{% endif %}">
+                    <img src="{{ partner.profile_photo }}" alt="{{ partner.name }}" class="mini-avatar">
+                    <div style="flex:1; min-width:0;">
+                        <div class="person-name" style="font-size:0.9rem;">{{ partner.name }}</div>
+                        <div class="person-meta">Click to open chat</div>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div style="padding:2rem 1rem; text-align:center; color:var(--text-light); font-size:0.9rem;">
+                    No conversations yet.<br>
+                    <a href="{{ url_for('people') }}" style="color:var(--primary-color); font-weight:600; text-decoration:none;">Find people →</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Start new conversation -->
+        <div style="padding:1rem; border-top:1px solid #E2E8F0;">
+            <a href="{{ url_for('people') }}" class="btn btn-primary w-100" style="text-align:center; display:block;">+ New Message</a>
+        </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="msg-chat-area">
+        {% if selected_user %}
+            <!-- Chat Header -->
+            <div class="msg-chat-header">
+                <img src="{{ selected_user.profile_photo }}" alt="{{ selected_user.name }}" class="mini-avatar">
+                <div style="flex:1;">
+                    <a href="{{ url_for('view_profile', user_id=selected_user.id) }}" class="person-name" style="font-size:1rem;">{{ selected_user.name }}</a>
+                    <div class="person-meta">{{ selected_user.email }}</div>
+                </div>
+                <a href="{{ url_for('view_profile', user_id=selected_user.id) }}" class="btn btn-secondary btn-sm">View Profile</a>
+            </div>
+
+            <!-- Messages -->
+            <div class="msg-bubbles" id="msg-bubbles">
+                {% if conversation %}
+                    {% for msg in conversation %}
+                    <div class="msg-bubble-wrap {% if msg.sender_id == current_user.id %}msg-sent{% else %}msg-received{% endif %}">
+                        {% if msg.sender_id != current_user.id %}
+                        <img src="{{ selected_user.profile_photo }}" alt="" class="msg-avatar">
+                        {% endif %}
+                        <div class="msg-bubble">
+                            <p>{{ msg.body }}</p>
+                            <span class="msg-time">{{ msg.created_at.strftime('%d %b · %H:%M') }}</span>
+                        </div>
+                        {% if msg.sender_id == current_user.id %}
+                        <img src="{{ current_user.profile_photo }}" alt="" class="msg-avatar">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align:center; color:var(--text-light); padding:3rem; font-size:0.95rem;">
+                        Say hello to {{ selected_user.name }}! 👋
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Input -->
+            <div class="msg-input-area">
+                <form method="POST" action="{{ url_for('conversation', user_id=selected_user.id) }}" style="display:flex; gap:0.75rem; align-items:flex-end;">
+                    <textarea name="body" rows="2" class="msg-textarea" placeholder="Type a message…" required
+                              onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.submit();}"></textarea>
+                    <button type="submit" class="btn btn-primary" style="flex-shrink:0; height:fit-content;">Send ➤</button>
+                </form>
+            </div>
+
+        {% else %}
+            <div class="msg-empty-chat">
+                <div style="font-size:4rem; margin-bottom:1rem;">💬</div>
+                <h2 style="color:var(--primary-dark); margin-bottom:0.5rem;">Your Messages</h2>
+                <p style="color:var(--text-light); max-width:320px;">Select a conversation from the left or start a new one by finding people in the community.</p>
+                <a href="{{ url_for('people') }}" class="btn btn-primary" style="margin-top:1.5rem;">Find People</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Auto scroll to bottom of chat
+const bubbles = document.getElementById('msg-bubbles');
+if (bubbles) bubbles.scrollTop = bubbles.scrollHeight;
+</script>
+{% endblock %}

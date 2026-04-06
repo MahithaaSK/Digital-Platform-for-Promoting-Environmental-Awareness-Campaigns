@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ── Profile Header ── -->
+<div class="profile-header">
+    <img src="{{ current_user.profile_photo or 'https://ui-avatars.com/api/?name=User' }}" alt="Avatar" class="profile-avatar">
+    <div style="flex:1;">
+        <h1 style="margin:0; font-size: 2rem; color: var(--primary-dark);">{{ current_user.name }}</h1>
+        <p style="color:var(--text-light); margin:0.25rem 0 0.75rem;">{{ current_user.email }}</p>
+        <span class="category" style="background:#E2E8F0; color:#4A5568;">{{ current_user.role|capitalize }}</span>
+        <div class="profile-stats">
+            <div class="stat">
+                <div class="stat-value">{{ current_user.followers_list.count() }}</div>
+                <div class="stat-label">Followers</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ current_user.followed.count() }}</div>
+                <div class="stat-label">Following</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ my_articles|length }}</div>
+                <div class="stat-label">Articles</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{{ my_campaigns|length }}</div>
+                <div class="stat-label">Campaigns</div>
+            </div>
+        </div>
+    </div>
+    <a href="{{ url_for('people') }}" class="btn btn-secondary btn-sm" style="white-space:nowrap;">👥 Find People</a>
+</div>
+
+<!-- ── Main 3-Column Layout ── -->
+<div class="dashboard-layout">
+
+    <!-- LEFT: Creation Hub + AI Suggestions + People -->
+    <div class="dash-left">
+        <div class="creation-hub">
+            <h2>✍️ Create</h2>
+            <div class="tabs" id="create-tabs">
+                <button class="tab-btn active" onclick="openTab('post', this)">Draft Article</button>
+                <button class="tab-btn" onclick="openTab('campaign', this)">Host Campaign</button>
+            </div>
+
+            <!-- AI Suggestions -->
+            {% if ai_suggestions %}
+            <div class="ai-suggestions">
+                <p class="ai-label">🤖 AI suggests writing about:</p>
+                <div class="suggestion-chips">
+                    {% for s in ai_suggestions %}
+                    <button class="chip" onclick="fillSuggestion('{{ s }}')">{{ s }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div id="tab-post" class="tab-content" style="display:block;">
+                <form method="POST" action="{{ url_for('create_post') }}">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="article-title" name="title" required placeholder="Impactful title…">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select name="category" required>
+                            <option value="Climate Change">Climate Change</option>
+                            <option value="Conservation">Conservation</option>
+                            <option value="Recycling">Recycling</option>
+                            <option value="Renewable Energy">Renewable Energy</option>
+                            <option value="Pollution Control">Pollution Control</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Content</label>
+                        <textarea name="content" rows="5" required placeholder="Share your thoughts…"></textarea>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;">🌱 Publish Article</button>
+                        <button type="button" class="btn btn-secondary" onclick="getRawArticleSuggestions('title')" title="Get AI title suggestions" style="padding:0.5rem 1rem;">✨ Title</button>
+                        <button type="button" class="btn btn-secondary" onclick="getRawArticleSuggestions('content')" title="Get AI content suggestions" style="padding:0.5rem 1rem;">💡 Content</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="tab-campaign" class="tab-content" style="display:none;">
+                <form method="POST" action="{{ url_for('create_campaign') }}">
+                    <div class="form-group">
+                        <label>Campaign Title</label>
+                        <input type="text" name="title" required placeholder="Name your event">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select name="category" required>
+                            <option value="Climate Change">Climate Change</option>
+                            <option value="Conservation">Conservation</option>
+                            <option value="Recycling">Recycling</option>
+                            <option value="Renewable Energy">Renewable Energy</option>
+                            <option value="Pollution Control">Pollution Control</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" rows="3" required placeholder="What will participants do?"></textarea>
+                    </div>
+                    <div style="display:flex; gap:1rem;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Date</label>
+                            <input type="date" name="date" required>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Location</label>
+                            <input type="text" name="location" required placeholder="City or address">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;">📣 Publish Campaign</button>
+                        <button type="button" class="btn btn-secondary" onclick="getRawCampaignSuggestions('title')" title="Get AI title suggestions" style="padding:0.5rem 1rem;">✨ Title</button>
+                        <button type="button" class="btn btn-secondary" onclick="getRawCampaignSuggestions('description')" title="Get AI description suggestions" style="padding:0.5rem 1rem;">💡 Desc</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Suggested People -->
+        {% if suggested_people %}
+        <div class="widget-card">
+            <h3 style="color:var(--primary-dark); margin-bottom:1rem;">👥 People You May Know</h3>
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                {% for person in suggested_people %}
+                <div class="person-row">
+                    <img src="{{ person.profile_photo }}" alt="{{ person.name }}" class="mini-avatar">
+                    <div style="flex:1; min-width:0;">
+                        <a href="{{ url_for('view_profile', user_id=person.id) }}" class="person-name">{{ person.name }}</a>
+                        <div class="person-meta">{{ person.followers_list.count() }} followers</div>
+                    </div>
+                    <form method="POST" action="{{ url_for('follow', user_id=person.id) }}" style="flex-shrink:0;">
+                        <button type="submit" class="btn btn-primary btn-sm">Follow</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('people') }}" style="display:block; text-align:center; margin-top:1rem; color:var(--primary-color); font-weight:600; text-decoration:none;">View all people →</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- CENTER: My Content + Posts Feed -->
+    <div class="dash-center">
+
+        <!-- My Articles -->
+        <div class="widget-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                <h2 style="color:var(--primary-dark); margin:0;">📝 My Articles</h2>
+                <a href="{{ url_for('articles') }}" style="font-size:0.85rem; color:var(--primary-color); font-weight:600; text-decoration:none;">View all →</a>
+            </div>
+            {% if my_articles %}
+                {% for article in my_articles %}
+                <div class="feed-card" style="margin-bottom:1rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                        <span class="category">{{ article.category }}</span>
+                        <span style="font-size:0.8rem; color:var(--text-light); margin-left:auto;">{{ article.created_at.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <h3 class="feed-title">{{ article.title }}</h3>
+                    <p class="feed-excerpt">{{ article.content[:140] }}{% if article.content|length > 140 %}…{% endif %}</p>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <a href="{{ url_for('view_article', article_id=article.id) }}" class="btn btn-secondary btn-sm">Read →</a>
+                        <span style="font-size:0.85rem; color:var(--text-light);">❤️ {{ article.likes or 0 }} likes · 💬 {{ article.comments|length }} comments</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>You haven't published any articles yet.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- My Campaigns -->
+        <div class="widget-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                <h2 style="color:var(--primary-dark); margin:0;">📣 My Campaigns</h2>
+                <a href="{{ url_for('campaigns') }}" style="font-size:0.85rem; color:var(--primary-color); font-weight:600; text-decoration:none;">View all →</a>
+            </div>
+            {% if my_campaigns %}
+                {% for campaign in my_campaigns %}
+                <div class="feed-card" style="margin-bottom:1rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                        <span class="category">{{ campaign.category }}</span>
+                        <span style="font-size:0.8rem; color:var(--text-light); margin-left:auto;">{{ campaign.date }}</span>
+                    </div>
+                    <h3 class="feed-title">{{ campaign.title }}</h3>
+                    <p class="feed-excerpt">📍 {{ campaign.location }}</p>
+                    <p class="feed-excerpt">{{ campaign.description[:120] }}{% if campaign.description|length > 120 %}…{% endif %}</p>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <a href="{{ url_for('view_campaign', campaign_id=campaign.id) }}" class="btn btn-secondary btn-sm">View →</a>
+                        <span style="font-size:0.85rem; color:var(--text-light);">💬 {{ campaign.comments|length }} comments</span>
+                        {% if campaign.id in joined_campaign_ids %}
+                        <span style="font-size:0.82rem; color:#276749; font-weight:600;">✓ Joined</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>You haven't created any campaigns yet.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Following Feed -->
+        <div class="widget-card">
+            <h2 style="color:var(--primary-dark); margin-bottom:1.5rem;">📰 Following Feed</h2>
+            {% if posts_feed %}
+                {% for post in posts_feed %}
+                {% if post.author_id != current_user.id %}
+                <div class="feed-card" style="margin-bottom:1rem;">
+                    <div class="feed-header">
+                        <img src="{{ post.author.profile_photo if post.author else 'https://ui-avatars.com/api/?name=A' }}"
+                             alt="Author" class="mini-avatar">
+                        <div>
+                            {% if post.author %}
+                            <a href="{{ url_for('view_profile', user_id=post.author.id) }}" class="person-name">{{ post.author.name }}</a>
+                            {% else %}
+                            <span class="person-name">EcoAware</span>
+                            {% endif %}
+                            <div class="person-meta">{{ post.created_at.strftime('%d %b %Y') }}</div>
+                        </div>
+                        <span class="category" style="margin-left:auto;">{{ post.category }}</span>
+                    </div>
+                    <h3 class="feed-title">{{ post.title }}</h3>
+                    <p class="feed-excerpt">{{ post.content[:180] }}{% if post.content|length > 180 %}…{% endif %}</p>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <a href="{{ url_for('view_article', article_id=post.id) }}" class="btn btn-secondary btn-sm">Read more →</a>
+                        <span style="font-size:0.85rem; color:var(--text-light);">❤️ {{ post.likes or 0 }} · 💬 {{ post.comments|length }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>Follow people to see their posts here.</p>
+                    <a href="{{ url_for('people') }}" class="btn btn-primary" style="margin-top:1rem;">Find People</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RIGHT: Calendar + Recommendations -->
+    <div class="dash-right">
+
+        <!-- Event Calendar -->
+        <div class="widget-card">
+            <h3 style="color:var(--primary-dark); margin-bottom:1rem;">📅 Event Calendar</h3>
+            {% if upcoming_events %}
+            <div class="timeline">
+                {% for event in upcoming_events %}
+                <div class="timeline-event">
+                    <div class="event-date">{{ event.date }}</div>
+                    <strong>{{ event.title }}</strong>
+                    <p style="font-size:0.85rem; color:var(--text-light);">📍 {{ event.location }}</p>
+                    <a href="{{ url_for('view_campaign', campaign_id=event.id) }}" style="font-size:0.8rem; color:var(--primary-color); text-decoration:none; font-weight:600;">View →</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding:1.5rem;">
+                <p style="font-size:0.9rem;">Join campaigns to fill your calendar!</p>
+                <a href="{{ url_for('campaigns') }}" class="btn btn-secondary btn-sm" style="margin-top:0.75rem;">Browse</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- AI Recommended -->
+        <div class="widget-card">
+            <h3 style="color:var(--primary-dark); margin-bottom:0.5rem;">✨ AI Recommended</h3>
+            <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:1rem;">Based on your activity.</p>
+            {% if rec_campaigns or rec_articles %}
+                {% for campaign in rec_campaigns %}
+                <div style="background:var(--bg-color); border-radius:var(--radius); padding:0.75rem; margin-bottom:0.75rem; border: 1px solid #C6F6D5;">
+                    <span style="font-size:0.7rem; font-weight:700; color:#276749; text-transform:uppercase;">Campaign</span>
+                    <p style="font-weight:600; margin:0.25rem 0; font-size:0.95rem;">{{ campaign.title }}</p>
+                    <div style="display:flex; gap:0.5rem;">
+                        <a href="{{ url_for('view_campaign', campaign_id=campaign.id) }}" class="btn btn-secondary btn-sm" style="flex:1; text-align:center;">View</a>
+                        <form method="POST" action="{{ url_for('participate', campaign_id=campaign.id) }}" style="flex:1;">
+                            <button type="submit" class="btn btn-primary btn-sm" style="width:100%;">Join</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+                {% for article in rec_articles %}
+                <div style="background:var(--bg-color); border-radius:var(--radius); padding:0.75rem; margin-bottom:0.75rem; border: 1px solid #BEE3F8;">
+                    <span style="font-size:0.7rem; font-weight:700; color:#2C5282; text-transform:uppercase;">Article</span>
+                    <p style="font-weight:600; margin:0.25rem 0; font-size:0.95rem;">{{ article.title }}</p>
+                    <a href="{{ url_for('view_article', article_id=article.id) }}" class="btn btn-secondary btn-sm" style="display:block; width:100%; border-color:#3182CE; color:#3182CE;">Read</a>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state" style="padding:1.5rem;">
+                <p style="font-size:0.9rem;">Interact with content to get recommendations.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+function openTab(tabName, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabName).style.display = 'block';
+    btn.classList.add('active');
+}
+function fillSuggestion(text) {
+    const titleInput = document.getElementById('article-title');
+    if (titleInput) {
+        titleInput.value = text;
+        titleInput.focus();
+        const postTab = document.querySelector('.tab-btn');
+        openTab('post', postTab);
+    }
+}
+</script>
+{% endblock %}

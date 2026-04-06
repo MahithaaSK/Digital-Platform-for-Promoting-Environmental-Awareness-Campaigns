@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Welcome to EcoAware</h1>
+    <p>Your digital platform for environmental awareness, learning, and local action. Discover how you can make a difference today.</p>
+    {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('register') }}" class="btn btn-primary">Join the Movement</a>
+    {% else %}
+        <a href="{{ url_for('campaigns') }}" class="btn btn-primary">Explore Campaigns</a>
+    {% endif %}
+</section>
+
+<div class="grid">
+    <div class="card">
+        <h3>📚 Learn</h3>
+        <p>Read our curated articles on climate change, conservation, recycling, and sustainable living.</p>
+        <a href="{{ url_for('articles') }}" class="btn btn-secondary btn-sm">Read Articles</a>
+    </div>
+    <div class="card">
+        <h3>🤝 Participate</h3>
+        <p>Find local campaigns, cleanup drives, and workshops. Join others to make an impact.</p>
+        <a href="{{ url_for('campaigns') }}" class="btn btn-secondary btn-sm">View Campaigns</a>
+    </div>
+    <div class="card">
+        <h3>✨ Discover</h3>
+        <p>Get personalized recommendations based on the topics and events you interact with.</p>
+        {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm">Login to see</a>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">My Dashboard</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

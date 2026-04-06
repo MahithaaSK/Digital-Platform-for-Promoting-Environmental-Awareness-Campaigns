@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.title }}{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 320px; gap:2rem; align-items:start;">
+
+    <!-- MAIN CAMPAIGN -->
+    <div>
+        <div class="article-content">
+            <!-- Header -->
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                <span class="category">{{ campaign.category }}</span>
+                {% if campaign.author %}
+                <a href="{{ url_for('view_profile', user_id=campaign.author.id) }}"
+                   style="display:flex; align-items:center; gap:0.5rem; text-decoration:none; margin-left:auto;">
+                    <img src="{{ campaign.author.profile_photo }}" alt="{{ campaign.author.name }}"
+                         style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+                    <span style="font-weight:600; color:var(--primary-dark); font-size:0.9rem;">{{ campaign.author.name }}</span>
+                </a>
+                {% endif %}
+            </div>
+
+            <h1 style="color:var(--primary-dark); margin-bottom:1.5rem; line-height:1.3;">{{ campaign.title }}</h1>
+
+            <!-- Info Pills -->
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+                <div class="info-pill">📍 {{ campaign.location }}</div>
+                <div class="info-pill">📅 {{ campaign.date }}</div>
+                <div class="info-pill">👥 {{ participant_count }} participant{{ 's' if participant_count != 1 }}</div>
+            </div>
+
+            <div style="font-size:1.05rem; line-height:1.8; color:#2D3748; white-space:pre-wrap;">
+{{ campaign.description }}
+            </div>
+
+            <!-- Actions -->
+            <div style="margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid #E2E8F0; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <a href="{{ url_for('campaigns') }}" class="btn btn-secondary">← Back to Campaigns</a>
+                {% if current_user.is_authenticated %}
+                    {% if campaign.id in participated_ids %}
+                    <button class="btn btn-sm" disabled style="background:#C6F6D5; color:#276749; cursor:not-allowed; border:none; font-weight:600; padding:0.6rem 1.2rem;">✓ You Joined!</button>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('participate', campaign_id=campaign.id) }}">
+                        <button type="submit" class="btn btn-primary">🙋 Join Campaign</button>
+                    </form>
+                    {% endif %}
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Login to Join</a>
+                {% endif %}
+
+                {% if current_user.is_authenticated and campaign.author and campaign.author.id != current_user.id %}
+                <a href="{{ url_for('conversation', user_id=campaign.author.id) }}" class="btn btn-secondary" style="margin-left:auto;">💬 Message Organizer</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ── Comments Section ── -->
+        <div class="comments-section">
+            <h2 class="comments-title">💬 Discussion <span style="font-size:1rem; color:var(--text-light);">({{ campaign.comments|length }})</span></h2>
+
+            {% if current_user.is_authenticated %}
+            <div class="comment-form-card">
+                <div style="display:flex; gap:0.75rem; align-items:flex-start;">
+                    <img src="{{ current_user.profile_photo }}" alt="You" class="mini-avatar" style="margin-top:0.25rem;">
+                    <form method="POST" action="{{ url_for('comment_campaign', campaign_id=campaign.id) }}" style="flex:1;">
+                        <textarea name="body" rows="3" class="comment-textarea" placeholder="Ask a question or leave a message…" required></textarea>
+                        <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Post Comment</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state" style="margin-bottom:1.5rem;">
+                <p><a href="{{ url_for('login') }}" style="color:var(--primary-color); font-weight:600;">Login</a> to join the discussion.</p>
+            </div>
+            {% endif %}
+
+            {% if campaign.comments %}
+                {% for comment in campaign.comments %}
+                <div class="comment-card">
+                    <div class="comment-header">
+                        <img src="{{ comment.author.profile_photo }}" alt="{{ comment.author.name }}" class="mini-avatar">
+                        <div style="flex:1;">
+                            <a href="{{ url_for('view_profile', user_id=comment.author.id) }}" class="person-name">{{ comment.author.name }}</a>
+                            <div class="person-meta">{{ comment.created_at.strftime('%d %b %Y · %H:%M') }}</div>
+                        </div>
+                        {% if current_user.is_authenticated and (comment.author_id == current_user.id or current_user.role == 'admin') %}
+                        <form method="POST" action="{{ url_for('delete_campaign_comment', comment_id=comment.id) }}">
+                            <button type="submit" class="btn-delete-comment" title="Delete">🗑</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <p class="comment-body">{{ comment.body }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><p>No comments yet. Start the discussion!</p></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <!-- Organizer -->
+        {% if campaign.author %}
+        <div class="widget-card">
+            <h3 style="color:var(--primary-dark); margin-bottom:1rem;">🧑‍💼 Organizer</h3>
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                <img src="{{ campaign.author.profile_photo }}" alt="{{ campaign.author.name }}"
+                     style="width:52px;height:52px;border-radius:50%;object-fit:cover;">
+                <div>
+                    <a href="{{ url_for('view_profile', user_id=campaign.author.id) }}" class="person-name" style="font-size:1rem;">{{ campaign.author.name }}</a>
+                    <div class="person-meta">{{ campaign.author.articles|length }} articles · {{ campaign.author.campaigns|length }} campaigns</div>
+                </div>
+            </div>
+            {% if current_user.is_authenticated and campaign.author.id != current_user.id %}
+            <div style="display:flex; gap:0.5rem;">
+                <a href="{{ url_for('conversation', user_id=campaign.author.id) }}" class="btn btn-primary btn-sm" style="flex:1; text-align:center;">💬 Message</a>
+                {% if not current_user.is_following(campaign.author) %}
+                <form method="POST" action="{{ url_for('follow', user_id=campaign.author.id) }}" style="flex:1;">
+                    <button type="submit" class="btn btn-secondary btn-sm w-100">+ Follow</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('unfollow', user_id=campaign.author.id) }}" style="flex:1;">
+                    <button type="submit" class="btn btn-sm w-100" style="background:#FED7D7;color:#9B2C2C;border:none;font-weight:600;">Unfollow</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Campaign Summary -->
+        <div class="widget-card">
+            <h3 style="color:var(--primary-dark); margin-bottom:1rem;">📋 Campaign Info</h3>
+            <div style="display:flex; flex-direction:column; gap:0.75rem; font-size:0.9rem;">
+                <div><strong>Category:</strong> {{ campaign.category }}</div>
+                <div><strong>Date:</strong> {{ campaign.date }}</div>
+                <div><strong>Location:</strong> {{ campaign.location }}</div>
+                <div><strong>Participants:</strong> {{ participant_count }}</div>
+                <div><strong>Posted:</strong> {{ campaign.created_at.strftime('%d %b %Y') }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
