@@ -87,6 +87,11 @@ else:
         print("⚠️  Warning: GEMINI_API_KEY not found. AI recommendations will be limited.")
 
 db.init_app(app)
+
+# Gunicorn imports the app module directly, so ensure tables exist at startup.
+with app.app_context():
+    db.create_all()
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
