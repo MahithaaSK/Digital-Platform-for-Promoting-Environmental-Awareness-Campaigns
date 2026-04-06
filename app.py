@@ -3,6 +3,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Article, Campaign, Participation, Interaction, ArticleComment, CampaignComment, Message
 from sqlalchemy import desc, or_, and_
+from sqlalchemy.exc import IntegrityError
 import random
 import os
 from dotenv import load_dotenv
@@ -293,20 +294,40 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
+        name = (request.form.get('name') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
+        password = request.form.get('password') or ''
+
+        if not name or not email or not password:
+            flash('Name, email, and password are required.', 'danger')
+            return redirect(url_for('register'))
+
         if User.query.filter_by(email=email).first():
             flash('Email already exists. Please login.', 'warning')
             return redirect(url_for('register'))
-        
+
         photo = f"https://ui-avatars.com/api/?name={name.replace(' ', '+')}&background=random&color=fff&size=128"
-        new_user = User(name=name, email=email, password_hash=generate_password_hash(password), profile_photo=photo)
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Registration successful. Please login.', 'success')
-        return redirect(url_for('login'))
+        new_user = User(
+            name=name,
+            email=email,
+            password_hash=generate_password_hash(password),
+            profile_photo=photo
+        )
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful. Please login.', 'success')
+            return redirect(url_for('login'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('That email is already registered. Please login instead.', 'warning')
+            return redirect(url_for('register'))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Register error: {e}")
+            flash('Unable to register right now. Please try again.', 'danger')
+            return redirect(url_for('register'))
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
