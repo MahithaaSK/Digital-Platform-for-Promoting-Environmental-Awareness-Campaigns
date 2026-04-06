@@ -6,9 +6,15 @@ from sqlalchemy import desc, or_, and_
 import random
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
 import json
 from difflib import SequenceMatcher
+
+try:
+    import google.generativeai as genai
+    GENAI_IMPORT_ERROR = None
+except Exception as e:
+    genai = None
+    GENAI_IMPORT_ERROR = e
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +37,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configure Gemini API
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if GEMINI_API_KEY:
+if GEMINI_API_KEY and genai is not None:
     genai.configure(api_key=GEMINI_API_KEY)
     # Use currently supported Gemini model names for v1beta.
     try:
@@ -75,7 +81,10 @@ else:
     model = None
     aura_model = None
     AURA_SYSTEM_PROMPT = ""
-    print("⚠️  Warning: GEMINI_API_KEY not found. AI recommendations will be limited.")
+    if GENAI_IMPORT_ERROR:
+        print(f"⚠️  Warning: google.generativeai import failed ({GENAI_IMPORT_ERROR}). AI recommendations will be limited.")
+    elif not GEMINI_API_KEY:
+        print("⚠️  Warning: GEMINI_API_KEY not found. AI recommendations will be limited.")
 
 db.init_app(app)
 login_manager = LoginManager()
