@@ -93,6 +93,62 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+    # Seed minimal starter content on first production boot.
+    if User.query.count() == 0 and Article.query.count() == 0 and Campaign.query.count() == 0:
+        admin = User(
+            name='Admin',
+            email='admin@ecoaware.com',
+            password_hash=generate_password_hash('admin123'),
+            role='admin',
+            profile_photo='https://ui-avatars.com/api/?name=Admin&background=2F855A&color=fff&size=128'
+        )
+        db.session.add(admin)
+        db.session.flush()
+
+        starter_articles = [
+            Article(
+                title='The Urgency of Climate Action',
+                content='Climate change is accelerating due to greenhouse gas emissions. Shift to renewable energy, reduce waste, and support community policies for measurable impact.',
+                category='Climate Change',
+                author_id=admin.id
+            ),
+            Article(
+                title='How to Start Composting at Home',
+                content='Use a simple bin with green and brown waste to create nutrient-rich compost. Composting reduces landfill methane and improves soil health.',
+                category='Recycling',
+                author_id=admin.id
+            ),
+            Article(
+                title='Solar Power for Beginners',
+                content='Solar panels convert sunlight to electricity and can significantly cut household emissions over time. Start with rooftop audits and energy-efficient appliances.',
+                category='Renewable Energy',
+                author_id=admin.id
+            ),
+        ]
+
+        starter_campaigns = [
+            Campaign(
+                title='River Cleanup Drive',
+                description='Community cleanup of river banks with responsible waste segregation and disposal.',
+                category='Pollution Control',
+                date='2026-06-15',
+                location='Riverfront Park',
+                author_id=admin.id
+            ),
+            Campaign(
+                title='Tree Planting Marathon',
+                description='Join volunteers to plant native species and improve local biodiversity.',
+                category='Climate Change',
+                date='2026-07-01',
+                location='City Outskirts',
+                author_id=admin.id
+            ),
+        ]
+
+        db.session.add_all(starter_articles + starter_campaigns)
+        db.session.commit()
+        print('Seeded starter data: 1 user, 3 articles, 2 campaigns.')
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
@@ -364,6 +420,8 @@ def dashboard():
     # Posts feed — articles from people the user follows, plus own articles
     followed_ids = [u.id for u in current_user.followed.all()] + [current_user.id]
     posts_feed = Article.query.filter(Article.author_id.in_(followed_ids)).order_by(desc(Article.created_at)).limit(10).all()
+    if not posts_feed:
+        posts_feed = Article.query.order_by(desc(Article.created_at)).limit(10).all()
     
     # People you may know — users not already followed, excluding self
     already_followed_ids = set(followed_ids)
